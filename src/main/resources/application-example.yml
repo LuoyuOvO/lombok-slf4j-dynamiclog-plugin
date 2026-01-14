@@ -1,0 +1,19 @@
+# 动态日志插件配置示例
+luoyu:
+  dynamic-log:
+    # 是否启用动态日志插件
+    enabled: true
+    # Nacos服务器地址
+    nacos-server-addr: 127.0.0.1:8848
+    # Nacos命名空间（可选）
+    nacos-namespace: 
+    # Nacos配置DataId
+    nacos-data-id: luoyu-dynamic-log-config
+    # Nacos配置Group
+    nacos-group: DEFAULT_GROUP
+    # 远程调用类型：rpc 或 feign（只能选择一个）
+    remote-call-type: feign
+    # 日志输出路径（可选）
+    log-output-path: /var/log/dynamic-log
+    # 日志文件名（可选）
+    log-file-name: dynamic-log.log

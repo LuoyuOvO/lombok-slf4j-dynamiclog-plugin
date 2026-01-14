@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "remoteCallType": "feign",
+  "logOutputPath": "/var/log/dynamic-log",
+  "logFileName": "dynamic-log.log",
+  "interfaces": [
+    {
+      "path": "/api/user/*",
+      "method": "POST",
+      "logLevel": "DEBUG",
+      "count": 5
+    },
+    {
+      "path": "/api/order/**",
+      "method": "GET",
+      "logLevel": "INFO",
+      "count": 3
+    }
+  ]
+}
