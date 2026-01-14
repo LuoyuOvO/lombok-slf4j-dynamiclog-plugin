@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -52,18 +53,22 @@ public class LoggerLevelManager {
                 try {
                     Object log4jLogger = getLog4jLogger(logger);
                     if (log4jLogger != null) {
-                        org.apache.logging.log4j.Level log4jLevel = convertToLog4jLevel(level);
+                        Object log4jLevel = convertToLog4jLevel(level);
                         if (log4jLevel != null) {
                             // 使用反射获取核心Logger
                             java.lang.reflect.Method getMessageLoggerMethod = 
                                 log4jLogger.getClass().getMethod("getMessageLogger");
                             Object coreLogger = getMessageLoggerMethod.invoke(log4jLogger);
-                            if (coreLogger != null && coreLogger instanceof org.apache.logging.log4j.core.Logger) {
-                                java.lang.reflect.Method setLevelMethod = 
-                                    coreLogger.getClass().getMethod("setLevel", org.apache.logging.log4j.Level.class);
-                                setLevelMethod.invoke(coreLogger, log4jLevel);
-                                modifiedLevels.put(loggerName, level);
-                                log.debug("Set logger [{}] level to [{}]", loggerName, level);
+                            if (coreLogger != null) {
+                                // 使用反射检查是否是Log4j2的Logger
+                                Class<?> log4jCoreLoggerClass = Class.forName("org.apache.logging.log4j.core.Logger");
+                                if (log4jCoreLoggerClass.isInstance(coreLogger)) {
+                                    java.lang.reflect.Method setLevelMethod = 
+                                        coreLogger.getClass().getMethod("setLevel", Class.forName("org.apache.logging.log4j.Level"));
+                                    setLevelMethod.invoke(coreLogger, log4jLevel);
+                                    modifiedLevels.put(loggerName, level);
+                                    log.debug("Set logger [{}] level to [{}]", loggerName, level);
+                                }
                             }
                         }
                     }
@@ -107,18 +112,22 @@ public class LoggerLevelManager {
                 try {
                     Object log4jLogger = getLog4jLogger(logger);
                     if (log4jLogger != null) {
-                        org.apache.logging.log4j.Level log4jLevel = convertToLog4jLevel(originalLevel);
+                        Object log4jLevel = convertToLog4jLevel(originalLevel);
                         if (log4jLevel != null) {
                             // 使用反射获取核心Logger
                             java.lang.reflect.Method getMessageLoggerMethod = 
                                 log4jLogger.getClass().getMethod("getMessageLogger");
                             Object coreLogger = getMessageLoggerMethod.invoke(log4jLogger);
-                            if (coreLogger != null && coreLogger instanceof org.apache.logging.log4j.core.Logger) {
-                                java.lang.reflect.Method setLevelMethod = 
-                                    coreLogger.getClass().getMethod("setLevel", org.apache.logging.log4j.Level.class);
-                                setLevelMethod.invoke(coreLogger, log4jLevel);
-                                modifiedLevels.remove(loggerName);
-                                log.debug("Restored logger [{}] level to [{}]", loggerName, originalLevel);
+                            if (coreLogger != null) {
+                                // 使用反射检查是否是Log4j2的Logger
+                                Class<?> log4jCoreLoggerClass = Class.forName("org.apache.logging.log4j.core.Logger");
+                                if (log4jCoreLoggerClass.isInstance(coreLogger)) {
+                                    java.lang.reflect.Method setLevelMethod = 
+                                        coreLogger.getClass().getMethod("setLevel", Class.forName("org.apache.logging.log4j.Level"));
+                                    setLevelMethod.invoke(coreLogger, log4jLevel);
+                                    modifiedLevels.remove(loggerName);
+                                    log.debug("Restored logger [{}] level to [{}]", loggerName, originalLevel);
+                                }
                             }
                         }
                     }
@@ -151,7 +160,7 @@ public class LoggerLevelManager {
     /**
      * 批量恢复Logger级别
      *
-     * @param loggerNames Logger名称列表
+     * @param packageName Logger名称列表
      */
     public static void setLoggerLevelsForPackage(String packageName, String level) {
         if (StringUtils.isBlank(packageName)) {
@@ -254,30 +263,26 @@ public class LoggerLevelManager {
     }
 
     /**
-     * 转换为Log4j2级别
+     * 转换为Log4j2级别（通过反射，避免直接依赖）
      *
      * @param level 级别字符串
-     * @return Log4j2级别
+     * @return Log4j2级别对象
      */
-    private static org.apache.logging.log4j.Level convertToLog4jLevel(String level) {
+    private static Object convertToLog4jLevel(String level) {
         if (StringUtils.isBlank(level)) {
             return null;
         }
 
-        String upperLevel = level.toUpperCase();
-        switch (upperLevel) {
-            case "TRACE":
-                return org.apache.logging.log4j.Level.TRACE;
-            case "DEBUG":
-                return org.apache.logging.log4j.Level.DEBUG;
-            case "INFO":
-                return org.apache.logging.log4j.Level.INFO;
-            case "WARN":
-                return org.apache.logging.log4j.Level.WARN;
-            case "ERROR":
-                return org.apache.logging.log4j.Level.ERROR;
-            default:
-                return null;
+        try {
+            Class<?> log4jLevelClass = Class.forName("org.apache.logging.log4j.Level");
+            String upperLevel = level.toUpperCase();
+            
+            // 使用反射获取Level常量
+            java.lang.reflect.Field levelField = log4jLevelClass.getField(upperLevel);
+            return levelField.get(null);
+        } catch (Exception e) {
+            // Log4j2不可用，返回null
+            return null;
         }
     }
 
